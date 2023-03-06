@@ -14,9 +14,14 @@ Created by [LuBashQ](https://github.com/LuBashQ).
 
 ## Contributing
 
-To contribute to this project, open an issue and:
+I follow the "fork-and-pull" Git workflow.
 
-- if it is a bug, mark it as such, fix it and make a pull request with me as a reviewer
-- if it is a feature, develop it in a separate branch and make a pull request with me as a reviewer
+1. Fork the repo on GitHub
+2. Clone the project to your own machine
+3. Commit changes to your own branch
+4. Push your work back up to your fork
+5. Submit a Pull request so that we can review your changes
+
+NOTE: Be sure to merge the latest from "upstream" before making a pull request!
 
 Everyone is welcome to contribute to this project.
