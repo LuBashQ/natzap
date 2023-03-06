@@ -3,30 +3,21 @@ package natzap
 import (
 	"errors"
 	"github.com/nats-io/nats-server/v2/server"
+	natstest "github.com/nats-io/nats-server/v2/test"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"testing"
 )
 
-func newServer() (*server.Server, error) {
-	s, err := server.NewServer(&server.Options{
-		Host:      "localhost",
-		Port:      4222,
-		JetStream: true,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return s, nil
+func newServer() *server.Server {
+	opts := natstest.DefaultTestOptions
+	opts.JetStream = true
+	return natstest.RunServer(&opts)
 }
 
 func TestConnection(t *testing.T) {
-	s, err := newServer()
-	if err != nil {
-		t.Error(err)
-	}
-	go s.Start()
+	s := newServer()
 	defer s.Shutdown()
 	con, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
@@ -37,11 +28,7 @@ func TestConnection(t *testing.T) {
 }
 
 func TestLoggingNoJetStream(t *testing.T) {
-	s, err := newServer()
-	if err != nil {
-		t.Error(err)
-	}
-	go s.Start()
+	s := newServer()
 	defer s.Shutdown()
 	con, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
@@ -55,18 +42,12 @@ func TestLoggingNoJetStream(t *testing.T) {
 }
 
 func TestLoggingWithJetStream(t *testing.T) {
-	s, err := newServer()
-	if err != nil {
-		t.Error(err)
-	}
-	go s.Start()
+	s := newServer()
 	defer s.Shutdown()
-
 	con, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
 		t.Error(err)
 	}
-
 	encoder := zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
 	core, err := NewCore(zapcore.WarnLevel, encoder, con).WithSubject("log").WithJetStream("LOG")
 	if errors.Is(err, nats.ErrStreamNotFound) {
@@ -80,7 +61,6 @@ func TestLoggingWithJetStream(t *testing.T) {
 	} else if err != nil {
 		t.Fatal(err)
 	}
-
 	logger := zap.New(core, zap.Development())
 	logger.Warn("This is a test")
 	con.Close()
