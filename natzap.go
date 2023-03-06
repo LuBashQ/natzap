@@ -1,8 +1,9 @@
 package natzap
 
 import (
+	"errors"
+	"fmt"
 	"github.com/nats-io/nats.go"
-	"github.com/pkg/errors"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -20,6 +21,7 @@ func NewCore(enabler zapcore.LevelEnabler, encoder zapcore.Encoder, con *nats.Co
 		encoder:      encoder,
 		con:          con,
 		subject:      "",
+		js:           nil,
 	}
 }
 
@@ -33,11 +35,11 @@ func (core *Core) WithJetStream(stream string) (c *Core, err error) {
 	if err != nil {
 		return nil, err
 	}
-	info, err := core.js.StreamInfo(stream)
-	if err != nil {
+	_, err = core.js.StreamInfo(stream)
+	if errors.Is(err, nats.ErrStreamNotFound) {
+		return core, err
+	} else if err != nil {
 		return nil, err
-	} else if info == nil {
-		return nil, nats.ErrStreamNotFound
 	}
 	return core, nil
 }
@@ -60,10 +62,18 @@ func (core *Core) Check(entry zapcore.Entry, checked *zapcore.CheckedEntry) *zap
 func (core *Core) Write(entry zapcore.Entry, fields []zapcore.Field) error {
 	buffer, err := core.encoder.EncodeEntry(entry, fields)
 	if err != nil {
-		return errors.Wrap(err, "failed to encode log entry")
+		return fmt.Errorf("%v: failed to encode log entry", err)
 	}
 	defer buffer.Free()
-	return core.con.Publish(core.subject, buffer.Bytes())
+	if core.js != nil {
+		ack, err := core.js.Publish(core.subject, buffer.Bytes())
+		if err != nil || ack == nil {
+			return err
+		}
+		return nil
+	} else {
+		return core.con.Publish(core.subject, buffer.Bytes())
+	}
 }
 
 func (core *Core) Sync() error {
